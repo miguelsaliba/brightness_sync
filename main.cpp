@@ -30,8 +30,8 @@ int change_brightness(int change) {
     // Brightness of the primary display (maybe should use xrandr to detect primary display instead?).
     display primary_display = displays[0];
     int primary_brightness = get_brightness(primary_display.number);
-    float brightness_percentage = (primary_brightness - primary_display.min) / (float) (primary_display.max - primary_display.min);
-    brightness_percentage += (float) change / 100;
+    double brightness_percentage = (primary_brightness - primary_display.min) / (double) (primary_display.max - primary_display.min);
+    brightness_percentage += (double) change / 100;
 
     if (brightness_percentage < 0) {
         brightness_percentage = 0;
