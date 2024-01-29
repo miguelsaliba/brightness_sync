@@ -6,10 +6,10 @@ TARGET = main
 
 all: $(TARGET)
 
-$(TARGET): main.o
+$(TARGET): $(TARGET).o
 	$(CXX) -o brightness_sync $(TARGET).cpp
 
-$(TARGET).o: main.cpp
+$(TARGET).o: $(TARGET).cpp
 	$(CXX) -c $(TARGET).cpp
 
 clean:
