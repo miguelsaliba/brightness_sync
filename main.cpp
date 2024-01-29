@@ -27,8 +27,7 @@ bool is_number(char *c) {
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        // Call help command
-        std::cerr << "Invalid command" << std::endl;
+        help();
         return 87;
     }
     std::vector<display> displays = get_displays();
@@ -54,13 +53,11 @@ int main(int argc, char *argv[]) {
         change_brightness(std::stoi(argv[2]), displays);
     }
     else if (!strcmp(argv[1], "help")) {
-        // Call the help command
-        std::cout << "Take a look at the README file" << std::endl;
+        help();
     }
     else {
-        // Call help command
-        std::cerr << "Invalid command" << std::endl;
-        return 1;
+        help();
+        return 0;
     }
     
     return 0;
@@ -172,4 +169,15 @@ std::vector<display> get_displays() {
     }
     display_list->clear();
     return displays;
+}
+
+void help() {
+    std::cout << "Usage: brightness_sync [command] [value]\n"
+    "Commands:\n"
+    "   help                    prints this help page\n"
+    "   up                      increases the brightness by 10%\n"
+    "   down                    decreases the brightness by 10%\n"
+    "   s, set VALUE            sets the brightness to the value\n"
+    "   c, change VALUE         changes the brightness by the value"
+    << std::endl;
 }
