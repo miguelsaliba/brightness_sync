@@ -19,10 +19,15 @@
 #include <vector>
 #include "main.h"
 
+// TODO: add a slider to show the percentages with the min and max.
 namespace bp = boost::process;
 
+bool is_number(char *c) {
+    return isdigit(*c) || *c == '-';
+}
+
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
+    if (argc <= 2) {
         return 87;
     }
     std::vector<display> displays = get_displays();
@@ -33,43 +38,69 @@ int main(int argc, char *argv[]) {
     else if (!strcmp(argv[1], "down")) {
         change_brightness(-10, displays);
     }
-    else if (isdigit(*argv[1]) || *argv[1] == '-') {
-        change_brightness(atoi(argv[1]), displays);
+    else if (!strcmp(argv[1], "set") || *argv[1] == 's') {
+        if (!is_number(argv[2])) {
+            std::cerr << "Please enter a valid number" << std::endl;
+            return 1;
+        }
+        set_brightness(atoi(argv[2]), displays);
+    }
+    else if (!strcmp(argv[1], "change") || *argv[1] == 'c') {
+        if (!is_number(argv[2])) {
+            std::cerr << "Please enter a valid number" << std::endl;
+            return 1;
+        }
+        change_brightness(atoi(argv[2]), displays);
+    }
+    else {
+        std::cerr << "invalid command" << std::endl;
+        return 1;
     }
     
     return 0;
 }
 
-int change_brightness(int change, std::vector<display> displays) {
-
+int change_brightness(int change, std::vector<display> &displays) {
     // Brightness of the primary display (maybe should use xrandr to detect primary display instead?).
     display primary_display = displays[0];
-    int primary_brightness = get_brightness(primary_display.number);
+    int primary_brightness;
+    try {
+        primary_brightness = get_brightness(primary_display.number);
+    } catch (int error_code) {
+        std::cerr << "ddcutil failed with error code: " << error_code << ". Please make sure ddcutil is on your path and is working correctly first." << std::endl;
+        return error_code;
+    }
     double brightness_percentage = (primary_brightness - primary_display.min) / (double) (primary_display.max - primary_display.min);
-    brightness_percentage += (double) change / 100;
-
+    brightness_percentage += (double) change;
+    
     if (brightness_percentage < 0) {
         brightness_percentage = 0;
-    } else if (brightness_percentage > 1) {
-        brightness_percentage = 1;
+    } else if (brightness_percentage > 100) {
+        brightness_percentage = 100;
     }
 
-    std::cout << "Current brightness: " << (int) (brightness_percentage * 100) << '%' << std::endl;
+    std::cout << "Current brightness: " << (int) (brightness_percentage) << '%' << std::endl;
 
+    set_brightness(brightness_percentage, displays);
+    return 0;
+}
+
+void set_brightness(double percentage, std::vector<display> &displays) {
     for (auto display : displays) {
-        int value = display.min + (brightness_percentage * (display.max - display.min));
+        int value = display.min + (percentage/100 * (display.max - display.min));
         std::cout << "Display " << display.number << ": " << value << '%' << std::endl;
 
         bp::child c2("ddcutil setvcp 10 " + std::to_string(value) + " --display " + std::to_string(display.number));
         c2.join();
     }
-    return 0;
 }
 
+// Gets the brightness of the given ddcutil display number.
+// Throws if ddcutil fails to return a brightness percentage.
 int get_brightness(int display_number) {
     bp::ipstream is;
     // NOTE: add support for custom hex for brightness in config file.
-    bp::child c("ddcutil getvcp 10 --brief --display " + std::to_string(display_number), bp::std_out > is);
+    bp::child c("ddcutil getvcp 10 --brief --display " + std::to_string(display_number), bp::std_out > is, bp::std_err > bp::null);
 
     std::string l;
     std::string line;
@@ -80,17 +111,21 @@ int get_brightness(int display_number) {
     c.join();
     int result = c.exit_code();
     if (result != 0) {
-        std::cerr << line << std::endl;
-        return result;
+        // std::cerr << line << std::endl;
+        throw result;
     }
 
-    std::size_t space_index = std::distance(line.begin(), boost::algorithm::find_nth(line, " ", 2).begin());
-    if (space_index <= 0) {
-        std::cout << "something happened idk" << std::endl;
-        std::cout << "space_index: " << space_index << std::endl;
-    }
-    int value = atoi(&line.at(space_index));
-    return value;
+    std::istringstream ss(line);
+    // ignores the first 3 words 
+    std::string ignore;
+    ss >> ignore;
+    ss >> ignore;
+    ss >> ignore;
+
+    // gets the brightness value from the output.
+    int number;
+    ss >> number;
+    return number;
 }
 
 std::vector<display> get_displays() {
