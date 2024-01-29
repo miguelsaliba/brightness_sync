@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <iterator>
 #include <string>
 #include <toml++/toml.hpp>
 #include <toml++/impl/parse_error.hpp>
@@ -23,11 +22,13 @@
 namespace bp = boost::process;
 
 bool is_number(char *c) {
-    return isdigit(*c) || *c == '-';
+    return isdigit(*c) || *c == '-' || *c == '+';
 }
 
 int main(int argc, char *argv[]) {
-    if (argc <= 2) {
+    if (argc < 2) {
+        // Call help command
+        std::cerr << "Invalid command" << std::endl;
         return 87;
     }
     std::vector<display> displays = get_displays();
@@ -43,17 +44,22 @@ int main(int argc, char *argv[]) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
         }
-        set_brightness(atoi(argv[2]), displays);
+        set_brightness(std::stoi(argv[2]), displays);
     }
     else if (!strcmp(argv[1], "change") || *argv[1] == 'c') {
         if (!is_number(argv[2])) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
         }
-        change_brightness(atoi(argv[2]), displays);
+        change_brightness(std::stoi(argv[2]), displays);
+    }
+    else if (!strcmp(argv[1], "help")) {
+        // Call the help command
+        std::cout << "Take a look at the README file" << std::endl;
     }
     else {
-        std::cerr << "invalid command" << std::endl;
+        // Call help command
+        std::cerr << "Invalid command" << std::endl;
         return 1;
     }
     
@@ -71,6 +77,7 @@ int change_brightness(int change, std::vector<display> &displays) {
         return error_code;
     }
     double brightness_percentage = (primary_brightness - primary_display.min) / (double) (primary_display.max - primary_display.min);
+    brightness_percentage *= 100;
     brightness_percentage += (double) change;
     
     if (brightness_percentage < 0) {
@@ -86,6 +93,11 @@ int change_brightness(int change, std::vector<display> &displays) {
 }
 
 void set_brightness(double percentage, std::vector<display> &displays) {
+    if (percentage < 0) {
+        percentage = 0;
+    } else if (percentage > 100) {
+        percentage = 100;
+    }
     for (auto display : displays) {
         int value = display.min + (percentage/100 * (display.max - display.min));
         std::cout << "Display " << display.number << ": " << value << '%' << std::endl;
