@@ -4,16 +4,20 @@ CLI utility to change the brightness of all your monitors at the same time.
 
 You can specify in your config file the min and max of each monitor and it will set the brightness as a percentage of that range.
 
-### Commands:
+### Dependencies:
+- ddcutil
+- toml++
+- boost
 
-- up
-`increases brightness by 10%`
+### Usage:
 
-- down
-`decreases brightness by 10%`
+```
+brightness_sync [command] [value]
 
-- set VALUE
-`sets the brightness to the given value`
-
-- change VALUE
-`changes the brightness by the given value`
+Commands:
+   help                    prints this help page
+   up                      increases the brightness by 10%
+   down                    decreases the brightness by 10%
+   s, set VALUE            sets the brightness to the value
+   c, change VALUE         changes the brightness by the value
+```
