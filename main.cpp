@@ -38,14 +38,14 @@ int main(int argc, char *argv[]) {
     else if (!strcmp(argv[1], "down")) {
         change_brightness(-10, displays);
     }
-    else if (!strcmp(argv[1], "set") || *argv[1] == 's') {
+    else if (!strcmp(argv[1], "set") || (*argv[1] == 's' && *(argv[1]+1) == 0)) {
         if (!is_number(argv[2])) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
         }
         set_brightness(std::stoi(argv[2]), displays);
     }
-    else if (!strcmp(argv[1], "change") || *argv[1] == 'c') {
+    else if (!strcmp(argv[1], "change") || (*argv[1] == 's' && *(argv[1]+1) == 0)) {
         if (!is_number(argv[2])) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
         help();
     }
     else {
-        help();
+        std::cerr << "Command not found. Please run 'brightness_sync help'" << std::endl;
         return 0;
     }
     
@@ -83,8 +83,6 @@ int change_brightness(int change, std::vector<display> &displays) {
         brightness_percentage = 100;
     }
 
-    std::cout << "Current brightness: " << (int) (brightness_percentage) << '%' << std::endl;
-
     set_brightness(brightness_percentage, displays);
     return 0;
 }
@@ -95,6 +93,9 @@ void set_brightness(double percentage, std::vector<display> &displays) {
     } else if (percentage > 100) {
         percentage = 100;
     }
+
+    std::cout << "Current brightness: " << (int) (percentage) << '%' << std::endl;
+
     for (auto display : displays) {
         int value = display.min + (percentage/100 * (display.max - display.min));
         std::cout << "Display " << display.number << ": " << value << '%' << std::endl;
