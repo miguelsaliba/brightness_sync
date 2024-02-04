@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
         }
         set_brightness(std::stoi(argv[2]), displays);
     }
-    else if (!strcmp(argv[1], "change") || (*argv[1] == 's' && *(argv[1]+1) == 0)) {
+    else if (!strcmp(argv[1], "change") || (*argv[1] == 'c' && *(argv[1]+1) == 0)) {
         if (!is_number(argv[2])) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
