@@ -5,6 +5,7 @@ struct display {
     int number;
     int min;
     int max;
+    DDCA_Display_Handle handle;
 };
 
 int get_brightness(int display_number);

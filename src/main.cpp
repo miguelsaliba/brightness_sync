@@ -6,24 +6,19 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include <ddcutil_types.h>
 #include <iostream>
 #include <string>
+#include <unistd.h>
+#include <vector>
 #include <toml++/toml.hpp>
 #include <toml++/impl/parse_error.hpp>
 #include <toml++/impl/parser.hpp>
 #include <toml++/impl/table.hpp>
 #include <toml++/impl/array.hpp>
 #include <toml++/impl/print_to_stream.hpp>
-#include <unistd.h>
-#include <vector>
-#include "ddcutil_c_api.h"
+#include <ddcutil_types.h>
+#include <ddcutil_c_api.h>
 #include "main.h"
-
-// ddca_create_dispno_display_identifier
-// ddca_get_display_ref
-// ddca_free_display_identifier
-// ddca_open_display2
 
 // TODO: add a slider to show the percentages with the min and max.
 namespace bp = boost::process;
@@ -39,6 +34,7 @@ int main(int argc, char *argv[]) {
     }
     std::vector<display> displays = get_displays();
     char* cmd = argv[1];
+    char* value = argv[2];
 
     if (!strcmp(cmd, "up")) {
         change_brightness(10, displays);
@@ -46,19 +42,19 @@ int main(int argc, char *argv[]) {
     else if (!strcmp(cmd, "down")) {
         change_brightness(-10, displays);
     }
-    else if (!strcmp(cmd, "set") || (*cmd == 's' && cmd[1] == 0)) {
-        if (!is_number(argv[2])) {
+    else if ((!strcmp(cmd, "set") || (*cmd == 's' && cmd[1] == 0)) && argc == 3) {
+        if (!is_number(value)) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
         }
-        set_brightness(std::stoi(argv[2]), displays);
+        set_brightness(std::stoi(value), displays);
     }
-    else if (!strcmp(cmd, "change") || (*cmd == 'c' && cmd[1] == 0)) {
-        if (!is_number(argv[2])) {
+    else if ((!strcmp(cmd, "change") || (*cmd == 'c' && cmd[1] == 0)) && argc == 3) {
+        if (!is_number(value)) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
         }
-        change_brightness(std::stoi(argv[2]), displays);
+        change_brightness(std::stoi(value), displays);
     }
     else if (!strcmp(cmd, "get") || (*cmd == 'g' && cmd[1] == 0)) {
         print_brightness(displays);
@@ -158,6 +154,22 @@ void print_brightness(std::vector<display> displays)
 }
 
 std::vector<display> get_displays() {
+    DDCA_Display_Info_List* info_list;
+    ddca_get_display_info_list2(false, &info_list);
+
+    for (int i = 0; i < info_list->ct; i++) {
+        DDCA_Display_Info info = info_list->info[i];
+        DDCA_Display_Handle handle;
+        ddca_open_display2(info.dref, false, &handle);
+        char** capabilities_string;
+        ddca_get_capabilities_string(handle, capabilities_string);
+        std::cout << "Display " << info.dispno << ": " << *capabilities_string << std::endl;
+        delete[] capabilities_string;
+    }
+
+    // Remove this:
+    return std::vector<display>();
+
     std::string config_location = "brightness.toml";
     if (std::getenv("XDG_CONFIG_HOME") != NULL) {
         config_location = '/' + config_location;
@@ -187,6 +199,8 @@ std::vector<display> get_displays() {
         displays.emplace_back(display);
         continue;
     }
+
+
     display_list->clear();
     return displays;
 }
