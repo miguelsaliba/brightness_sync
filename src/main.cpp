@@ -4,6 +4,7 @@
 #include <boost/process/system.hpp>
 #include <boost/process.hpp>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -23,6 +24,8 @@
 // TODO: add a slider to show the percentages with the min and max.
 namespace bp = boost::process;
 
+DDCA_Vcp_Feature_Code feature_code = 0x10;
+
 bool is_number(char *c) {
     return isdigit(*c) || *c == '-' || *c == '+';
 }
@@ -32,7 +35,7 @@ int main(int argc, char *argv[]) {
         help();
         return 87;
     }
-    std::vector<display> displays = get_displays();
+    std::vector<Display> displays = get_displays();
     char* cmd = argv[1];
     char* value = argv[2];
 
@@ -70,12 +73,12 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-int change_brightness(int change, std::vector<display> &displays) {
+int change_brightness(int change, std::vector<Display> &displays) {
     // Brightness of the primary display (maybe should use xrandr to detect primary display instead?).
-    display primary_display = displays[0];
+    Display primary_display = displays[0];
     int primary_brightness;
     try {
-        primary_brightness = get_brightness(primary_display.number);
+        primary_brightness = get_brightness(primary_display);
     } catch (int error_code) {
         std::cerr << "ddcutil failed with error code: " << error_code << ". Please make sure ddcutil is on your path and is working correctly first." << std::endl;
         return error_code;
@@ -94,7 +97,7 @@ int change_brightness(int change, std::vector<display> &displays) {
     return 0;
 }
 
-void set_brightness(double percentage, std::vector<display> &displays) {
+void set_brightness(double percentage, std::vector<Display> &displays) {
     if (percentage < 0) {
         percentage = 0;
     } else if (percentage > 100) {
@@ -107,68 +110,44 @@ void set_brightness(double percentage, std::vector<display> &displays) {
         int value = display.min + (percentage/100 * (display.max - display.min));
         std::cout << "Display " << display.number << ": " << value << '%' << std::endl;
 
-        bp::child c2("ddcutil setvcp 10 " + std::to_string(value) + " --display " + std::to_string(display.number));
-        c2.join();
+        uint8_t hi_byte = (uint8_t) (value >> 8);
+        uint8_t lo_byte = (uint8_t) (value & 0xFF);
+        ddca_set_non_table_vcp_value(display.handle, feature_code, hi_byte, lo_byte);
     }
 }
 
 // Gets the brightness of the given ddcutil display number.
 // Throws if ddcutil fails to return a brightness percentage.
-int get_brightness(int display_number) {
-    bp::ipstream is;
-    // NOTE: add support for custom hex for brightness in config file.
-    bp::child c("ddcutil getvcp 10 --brief --display " + std::to_string(display_number), bp::std_out > is, bp::std_err > bp::null);
-
-    std::string l;
-    std::string line;
-    while (is && std::getline(is, l) && !l.empty() && l.length() > 1) {
-        line = l;
-    }
-
-    c.join();
-    int result = c.exit_code();
-    if (result != 0) {
-        throw result;
-    }
-
-    std::istringstream ss(line);
-    // ignores the first 3 words
-    std::string ignore;
-    ss >> ignore;
-    ss >> ignore;
-    ss >> ignore;
-
-    // gets the brightness value from the output.
-    int number;
-    ss >> number;
-    return number;
+int get_brightness(Display &display) {
+    DDCA_Non_Table_Vcp_Value value;
+    ddca_get_non_table_vcp_value(display.handle, feature_code, &value);
+    return value.sh << 8 | value.sl;
 }
 
-void print_brightness(std::vector<display> displays)
+void print_brightness(std::vector<Display> displays)
 {
     std::cout << "Current brightness" << std::endl;
 
-    for (const auto &display : displays) {
-        std::cout << "Display " << display.number << ": " << get_brightness(display.number) << '%' << std::endl;
+    for (auto &display : displays) {
+        std::cout << "Display " << display.number << ": " << get_brightness(display) << '%' << std::endl;
     }
 }
 
-std::vector<display> get_displays() {
+std::vector<Display> get_displays() {
+    std::vector<Display> displays;
     DDCA_Display_Info_List* info_list;
     ddca_get_display_info_list2(false, &info_list);
 
     for (int i = 0; i < info_list->ct; i++) {
         DDCA_Display_Info info = info_list->info[i];
-        DDCA_Display_Handle handle;
-        ddca_open_display2(info.dref, false, &handle);
-        char** capabilities_string;
-        ddca_get_capabilities_string(handle, capabilities_string);
-        std::cout << "Display " << info.dispno << ": " << *capabilities_string << std::endl;
-        delete[] capabilities_string;
+        Display display = {
+            info.dispno,
+            1,
+            100,
+        };
+        ddca_open_display2(info.dref, false, &display.handle);
+        displays.emplace_back(display);
     }
-
-    // Remove this:
-    return std::vector<display>();
 
     std::string config_location = "brightness.toml";
     if (std::getenv("XDG_CONFIG_HOME") != NULL) {
@@ -187,22 +166,32 @@ std::vector<display> get_displays() {
         std::cerr << "Config parsing error: \n" << err << std::endl;
     }
     auto display_list = tbl["display"].as_array();
-    std::vector<display> displays;
     for (auto& item : *display_list) {
-        toml::table display_table = *item.as_table();
-        display display = {
-            static_cast<int>(display_table["number"].as_integer()->get()),
-            static_cast<int>(display_table["min"].as_integer()->get()),
-            static_cast<int>(display_table["max"].as_integer()->get()),
-        };
-        display_table.clear();
-        displays.emplace_back(display);
+        toml::table disp_table = *item.as_table();
+        int disp_num = disp_table["number"].as_integer()->get();
+        int index = find_display(displays, disp_num);
+        if (index == -1) {
+            std::cerr << "Display number " << disp_num << " not found" << std::endl;
+            exit(1);
+        }
+        displays[index].min = disp_table["min"].value_or(1);
+        displays[index].max = disp_table["max"].value_or(100);
+
+        disp_table.clear();
         continue;
     }
 
-
     display_list->clear();
     return displays;
+}
+
+int find_display(const std::vector<Display> &displays, int number) {
+    for (int i = 0; i < displays.size(); i++) {
+        if (displays[i].number == number) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 void help() {
