@@ -1,10 +1,4 @@
-#include <boost/process/io.hpp>
-#include <boost/process/pipe.hpp>
-#include <boost/process/search_path.hpp>
-#include <boost/process/system.hpp>
-#include <boost/process.hpp>
 #include <cctype>
-#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -22,7 +16,6 @@
 #include "main.h"
 
 // TODO: add a slider to show the percentages with the min and max.
-namespace bp = boost::process;
 
 DDCA_Vcp_Feature_Code feature_code = 0x10;
 
@@ -35,36 +28,48 @@ int main(int argc, char *argv[]) {
         help();
         return 87;
     }
-    std::vector<Display> displays = get_displays();
     char* cmd = argv[1];
     char* value = argv[2];
 
+    // Change by -10
     if (!strcmp(cmd, "up")) {
+        std::vector<Display> displays = get_displays();
         change_brightness(10, displays);
     }
+    // Change by +10
     else if (!strcmp(cmd, "down")) {
+        std::vector<Display> displays = get_displays();
         change_brightness(-10, displays);
     }
+    // Set brightness
     else if ((!strcmp(cmd, "set") || (*cmd == 's' && cmd[1] == 0)) && argc == 3) {
         if (!is_number(value)) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
         }
+
+        std::vector<Display> displays = get_displays();
         set_brightness(std::stoi(value), displays);
     }
+    // Change brightness
     else if ((!strcmp(cmd, "change") || (*cmd == 'c' && cmd[1] == 0)) && argc == 3) {
         if (!is_number(value)) {
             std::cerr << "Please enter a valid number" << std::endl;
             return 1;
         }
+        std::vector<Display> displays = get_displays();
         change_brightness(std::stoi(value), displays);
     }
+    // Get brightness
     else if (!strcmp(cmd, "get") || (*cmd == 'g' && cmd[1] == 0)) {
+        std::vector<Display> displays = get_displays();
         print_brightness(displays);
     }
+    // Help
     else if (!strcmp(cmd, "help")) {
         help();
     }
+    // Not found
     else {
         std::cerr << "Command not found. Please run 'brightness_sync help'" << std::endl;
         return 0;
@@ -97,7 +102,7 @@ int change_brightness(int change, std::vector<Display> &displays) {
     return 0;
 }
 
-void set_brightness(double percentage, std::vector<Display> &displays) {
+bool set_brightness(double percentage, std::vector<Display> &displays) {
     if (percentage < 0) {
         percentage = 0;
     } else if (percentage > 100) {
@@ -112,8 +117,13 @@ void set_brightness(double percentage, std::vector<Display> &displays) {
 
         uint8_t hi_byte = (uint8_t) (value >> 8);
         uint8_t lo_byte = (uint8_t) (value & 0xFF);
-        ddca_set_non_table_vcp_value(display.handle, feature_code, hi_byte, lo_byte);
+        DDCA_Status status = ddca_set_non_table_vcp_value(display.handle, feature_code, hi_byte, lo_byte);
+        if (status != 0) {
+            std::cout << "Error: Display " << display.number << " failed: " << ddca_rc_desc(status);
+            return false;
+        }
     }
+    return true;
 }
 
 // Gets the brightness of the given ddcutil display number.
@@ -145,7 +155,11 @@ std::vector<Display> get_displays() {
             1,
             100,
         };
-        ddca_open_display2(info.dref, false, &display.handle);
+        DDCA_Status status = ddca_open_display2(info.dref, false, &display.handle);
+        if (status != 0) {
+            std::cerr << "Error: Display " << display.number << " failed to open in ddcutil (something else might be using it): " << ddca_rc_desc(status);
+            exit(1);
+        }
         displays.emplace_back(display);
     }
 
@@ -195,13 +209,14 @@ int find_display(const std::vector<Display> &displays, int number) {
 }
 
 void help() {
-    std::cout << "Usage: brightness_sync [command] [value]\n"
-    "Commands:\n"
-    "   help                    prints this help page\n"
-    "   up                      increases the brightness by 10%\n"
-    "   down                    decreases the brightness by 10%\n"
-    "   s, set VALUE            sets the brightness to the value\n"
-    "   c, change VALUE         changes the brightness by the value\n"
-    "   g, get VALUE            gets the brightness of all the monitors\n"
-    << std::endl;
+    std::cout <<
+        "Usage: brightness_sync [command] [value]\n"
+        "Commands:\n"
+        "   help                    prints this help page\n"
+        "   up                      increases the brightness by 10%\n"
+        "   down                    decreases the brightness by 10%\n"
+        "   s, set VALUE            sets the brightness to the value\n"
+        "   c, change VALUE         changes the brightness by the value\n"
+        "   g, get VALUE            gets the brightness of all the monitors\n"
+        << std::endl;
 }

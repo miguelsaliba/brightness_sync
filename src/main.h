@@ -12,7 +12,7 @@ int get_brightness(Display &display);
 
 int change_brightness(int change, std::vector<Display> &displays);
 
-void set_brightness(double percentage, std::vector<Display> &displays);
+bool set_brightness(double percentage, std::vector<Display> &displays);
 
 void print_brightness(std::vector<Display> displays);
 
