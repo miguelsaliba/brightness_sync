@@ -1,16 +1,23 @@
 CXX = g++
-CXXFLAGS = -g
-objects = main.o
+CXXFLAGS = -g -std=c++17
+LDFLAGS = $(shell pkg-config --libs ddcutil) -pthread -lboost_filesystem -lboost_system
+INCFLAGS = $(shell pkg-config --cflags ddcutil)
 
-TARGET = main
+SRC_DIR = src
+BUILD_DIR = build
+SRCS = $(wildcard $(SRC_DIR)/*.cpp)
+OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
+TARGET = brightness_sync
 
 all: $(TARGET)
 
-$(TARGET): $(TARGET).o
-	$(CXX) -o brightness_sync $(TARGET).cpp
+$(TARGET): $(OBJS)
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 
-$(TARGET).o: $(TARGET).cpp
-	$(CXX) -c $(TARGET).cpp
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCFLAGS) -c $< -o $@
 
 clean:
-	$(RM) -f $(TARGET).o $(TARGET)
+	$(RM) -rf $(BUILD_DIR) $(TARGET)

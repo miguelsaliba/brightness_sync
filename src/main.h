@@ -2,7 +2,7 @@
 #include <vector>
 
 struct display {
-    int number;
+    int id;
     int min;
     int max;
 };
