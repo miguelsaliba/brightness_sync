@@ -1,20 +1,15 @@
 #include <ddcutil_types.h>
 #include <vector>
-
-struct display {
-    int id;
-    int min;
-    int max;
-};
+#include "config.h"
 
 int get_brightness(int display_number);
 
-int change_brightness(int change, std::vector<display> &displays);
+int change_brightness(int change, std::vector<Display> &displays);
 
-void set_brightness(double percentage, std::vector<display> &displays);
+void set_brightness(double percentage, std::vector<Display> &displays);
 
-void print_brightness(std::vector<display> displays);
+void print_brightness(std::vector<Display> displays);
 
-std::vector<display> get_displays();
+std::vector<Display> get_displays();
 
 void help();

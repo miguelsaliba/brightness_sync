@@ -1,11 +1,11 @@
 #include "main.h"
+#include "config.h"
 #include <boost/process.hpp>
 #include <boost/process/io.hpp>
 #include <boost/process/pipe.hpp>
 #include <boost/process/search_path.hpp>
 #include <boost/process/system.hpp>
 #include <cctype>
-#include <cstdlib>
 #include <cstring>
 #include <ddcutil_types.h>
 #include <iostream>
@@ -28,7 +28,8 @@ int main(int argc, char *argv[]) {
         help();
         return 87;
     }
-    std::vector<display> displays = get_displays();
+    Config config = create_config();
+    std::vector<Display> displays = config.displays;
     char *cmd = argv[1];
 
     if (!strcmp(cmd, "up")) {
@@ -60,8 +61,8 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-int change_brightness(int change, std::vector<display> &displays) {
-    display primary_display = displays[0];
+int change_brightness(int change, std::vector<Display> &displays) {
+    Display primary_display = displays[0];
     int primary_brightness;
     try {
         primary_brightness = get_brightness(primary_display.id);
@@ -88,7 +89,7 @@ int change_brightness(int change, std::vector<display> &displays) {
     return 0;
 }
 
-void set_brightness(double percentage, std::vector<display> &displays) {
+void set_brightness(double percentage, std::vector<Display> &displays) {
     if (percentage < 0) {
         percentage = 0;
     } else if (percentage > 100) {
@@ -150,46 +151,13 @@ int get_brightness(int display_number) {
     return number;
 }
 
-void print_brightness(std::vector<display> displays) {
+void print_brightness(std::vector<Display> displays) {
     std::cout << "Current brightness" << std::endl;
 
     for (const auto &display : displays) {
         std::cout << "Display " << display.id << ": "
                   << get_brightness(display.id) << '%' << std::endl;
     }
-}
-
-std::vector<display> get_displays() {
-    std::string config_location = "brightness.toml";
-    if (std::getenv("XDG_CONFIG_HOME") != NULL) {
-        config_location = '/' + config_location;
-        config_location = std::getenv("XDG_CONFIG_HOME") + config_location;
-    } else {
-        config_location = "/.config/" + config_location;
-        config_location = std::getenv("$HOME") + config_location;
-    }
-
-    toml::table tbl;
-    try {
-        tbl = toml::parse_file(config_location);
-    } catch (const toml::parse_error &err) {
-        std::cerr << "Config parsing error: \n" << err << std::endl;
-    }
-    auto display_list = tbl["display"].as_array();
-    std::vector<display> displays;
-    for (auto &item : *display_list) {
-        toml::table display_table = *item.as_table();
-        display display = {
-            static_cast<int>(display_table["id"].as_integer()->get()),
-            static_cast<int>(display_table["min"].as_integer()->get()),
-            static_cast<int>(display_table["max"].as_integer()->get()),
-        };
-        display_table.clear();
-        displays.emplace_back(display);
-        continue;
-    }
-    display_list->clear();
-    return displays;
 }
 
 void help() {
