@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -g -std=c++17
-LDFLAGS = $(shell pkg-config --libs ddcutil) -pthread -lboost_filesystem -lboost_system
-INCFLAGS = $(shell pkg-config --cflags ddcutil)
+LDFLAGS = -pthread -lboost_filesystem -lboost_system
+INCFLAGS = 
 
 SRC_DIR = src
 BUILD_DIR = build
