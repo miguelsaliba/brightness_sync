@@ -7,7 +7,6 @@
 #include <boost/process/system.hpp>
 #include <cctype>
 #include <cstring>
-#include <ddcutil_types.h>
 #include <iostream>
 #include <string>
 #include <toml++/impl/parse_error.hpp>
@@ -122,7 +121,7 @@ int get_brightness(int display_number) {
         bp::search_path("ddcutil"),
         "getvcp", "10",
         "--brief",
-        "--display" + std::to_string(display_number),
+        "--display", std::to_string(display_number),
         bp::std_out > is, bp::std_err > bp::null
     );
 

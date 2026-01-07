@@ -1,4 +1,3 @@
-#include <ddcutil_types.h>
 #include <vector>
 #include "config.h"
 
