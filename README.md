@@ -9,7 +9,7 @@ You can specify in your config file the min and max of each monitor and the brig
 ### Dependencies:
 
 - [`ddcutil`](https://www.ddcutil.com/install/)
-- `toml++`
+- [`toml++`](https://marzer.github.io/tomlplusplus/)
 
 First, make sure you can run commands with ddcutil (e.g. `ddcutil setvcp 10 50 --display 1`).
 
