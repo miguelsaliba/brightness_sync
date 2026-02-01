@@ -169,7 +169,7 @@ std::vector<Display> get_displays() {
         config_location = std::getenv("XDG_CONFIG_HOME") + config_location;
     } else {
         config_location = "/.config/" + config_location;
-        config_location = std::getenv("$HOME") + config_location;
+        config_location = std::getenv("HOME") + config_location;
     }
 
     toml::table tbl;
